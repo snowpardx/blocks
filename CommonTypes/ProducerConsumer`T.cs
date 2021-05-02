@@ -4,21 +4,25 @@ using System.Threading;
 
 namespace CommonTypes
 {
-    //https://ru.stackoverflow.com/a/428328
+    //based on https://ru.stackoverflow.com/a/428328 with some minor code style updates
     public class ProducerConsumer<T> where T : class
     {
-        object mutex = new object();
-        Queue<T> queue = new Queue<T>();
-        bool isDead = false;
+        private object mutex = new object();
+        private Queue<T> queue = new Queue<T>();
+        private bool isDead = false;
 
         public void Enqueue(T task)
         {
             if (task == null)
-                throw new ArgumentNullException("task");
+            {
+                throw new ArgumentNullException(nameof(task));
+            }
             lock (mutex)
             {
                 if (isDead)
+                {
                     throw new InvalidOperationException("Queue already stopped");
+                }
                 queue.Enqueue(task);
                 Monitor.Pulse(mutex);
             }
@@ -29,10 +33,14 @@ namespace CommonTypes
             lock (mutex)
             {
                 while (queue.Count == 0 && !isDead)
+                {
                     Monitor.Wait(mutex);
+                }
 
                 if (queue.Count == 0)
+                {
                     return null;
+                }
 
                 return queue.Dequeue();
             }
