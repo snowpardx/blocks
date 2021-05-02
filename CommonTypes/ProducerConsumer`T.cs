@@ -11,6 +11,7 @@ namespace CommonTypes
         private Queue<T> queue = new Queue<T>();
         private bool isDead = false;
         private int blockIndex = 0;
+        private int size = 0;
 
         public void Enqueue(T task)
         {
@@ -25,6 +26,7 @@ namespace CommonTypes
                     throw new InvalidOperationException("Queue already stopped");
                 }
                 queue.Enqueue(task);
+                size++;
                 Monitor.Pulse(mutex);
             }
         }
@@ -45,16 +47,14 @@ namespace CommonTypes
 
                 var currentBlockIndex = blockIndex;
                 blockIndex++;
+                size--;
                 return new Tuple<int, T>(currentBlockIndex, queue.Dequeue());
             }
         }
 
         public int Size()
         {
-            lock(mutex)
-            {
-                return queue.Count;
-            }
+            return size;
         }
 
         public void Stop()

@@ -11,6 +11,7 @@ namespace CommonTypes
         private object mutex = new object();
         private bool isDead = false;
         private int consumerBlockIndex = 0;
+        private int size = 0;
 
         public void Enqueue(int index, T result)
         {
@@ -25,6 +26,7 @@ namespace CommonTypes
                     throw new InvalidOperationException("Sink already stopped");
                 }
                 results.Add(index, result);
+                size++;
                 Monitor.Pulse(mutex);
             }
         }
@@ -42,6 +44,7 @@ namespace CommonTypes
                 {
                     results.Remove(consumerBlockIndex);
                     consumerBlockIndex++;
+                    size--;
                     return result;
                 }
 
@@ -57,10 +60,7 @@ namespace CommonTypes
 
         public int Size()
         {
-            lock(mutex)
-            {
-                return results.Count;
-            }
+            return size;
         }
 
         public void Stop()
