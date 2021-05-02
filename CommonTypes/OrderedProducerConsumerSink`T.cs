@@ -36,7 +36,7 @@ namespace CommonTypes
             lock (mutex)
             {
                 T result = null;
-                while (!isDead && !results.TryGetValue(consumerBlockIndex, out result))
+                while (!results.TryGetValue(consumerBlockIndex, out result) && !isDead)
                 {
                     Monitor.Wait(mutex);
                 }
@@ -49,7 +49,7 @@ namespace CommonTypes
                 }
 
 
-                if (results.Count == 0)
+                if (size == 0)
                 {
                     return null;
                 }

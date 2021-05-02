@@ -61,7 +61,14 @@ namespace CommonTypes
                     }
                     tasks.Enqueue(data);
                 }
-                workingThreads.ForEach(thread => thread.Join());
+                // join only processing tread and not the result aggregator
+                for (var i = 1; i < workingThreads.Count; i++)
+                {
+                    workingThreads[i].Join();
+                }
+                // notifies the result aggregator thread that no new information would be added and wait for it to finish
+                results.Stop();
+                workingThreads[0].Join();
             } catch(HandledException e)
             {
                 this.Interrupt();
