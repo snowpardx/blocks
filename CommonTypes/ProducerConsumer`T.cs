@@ -10,6 +10,7 @@ namespace CommonTypes
         private object mutex = new object();
         private Queue<T> queue = new Queue<T>();
         private bool isDead = false;
+        private int blockIndex = 0;
 
         public void Enqueue(T task)
         {
@@ -28,7 +29,7 @@ namespace CommonTypes
             }
         }
 
-        public T Dequeue()
+        public Tuple<int, T> Dequeue()
         {
             lock (mutex)
             {
@@ -42,7 +43,17 @@ namespace CommonTypes
                     return null;
                 }
 
-                return queue.Dequeue();
+                var currentBlockIndex = blockIndex;
+                blockIndex++;
+                return new Tuple<int, T>(currentBlockIndex, queue.Dequeue());
+            }
+        }
+
+        public int Size()
+        {
+            lock(mutex)
+            {
+                return queue.Count;
             }
         }
 

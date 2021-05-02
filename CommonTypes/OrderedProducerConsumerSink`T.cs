@@ -55,6 +55,14 @@ namespace CommonTypes
             }
         }
 
+        public int Size()
+        {
+            lock(mutex)
+            {
+                return results.Count;
+            }
+        }
+
         public void Stop()
         {
             lock (mutex)
