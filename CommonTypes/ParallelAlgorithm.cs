@@ -23,6 +23,7 @@ namespace CommonTypes
         private OrderedProducerConsumerSink<Result> results = new OrderedProducerConsumerSink<Result>();
         private int concurrency = Environment.ProcessorCount;
         private List<Thread> workingThreads;
+        private volatile bool interrupted = false;
 
         public ParallelAlgorithm(Func<Data> getDataBlock, Func<Data, Result> processData, Action<Result> useResult)
         {
@@ -40,51 +41,89 @@ namespace CommonTypes
             }
         }
 
-        public void Run()
+        public int Run()
         {
-            workingThreads.ForEach(thread => thread.Start());
-            while(true)
+            try
             {
-                if (tasks.Size() > 2 * concurrency || results.Size() > 2 * concurrency)
+                workingThreads.ForEach(thread => thread.Start());
+                while(!interrupted)
                 {
-                    Thread.Yield();
-                    continue;
+                    if (tasks.Size() > 2 * concurrency || results.Size() > 2 * concurrency)
+                    {
+                        Thread.Yield();
+                        continue;
+                    }
+                    var data = getDataBlock();
+                    if (data == null)
+                    {
+                        tasks.Stop();
+                        break;
+                    }
+                    tasks.Enqueue(data);
                 }
-                var data = getDataBlock();
-                if (data == null)
-                {
-                    tasks.Stop();
-                    break;
-                }
-                tasks.Enqueue(data);
+                workingThreads.ForEach(thread => thread.Join());
+            } catch(HandledException e)
+            {
+                this.Interrupt();
+            } catch (Exception e)
+            {
+                Console.WriteLine($"Unhandled exception: {e.Message}");
+                this.Interrupt();
             }
-            workingThreads.ForEach(thread => thread.Join());
+            return interrupted ? 1 : 0;
+        }
+
+        public void Interrupt()
+        {
+            tasks.Stop();
+            results.Stop();
+            interrupted = true;
         }
 
         private void ProcessDataTask()
         {
-            while(true)
+            try
             {
-                var taskInfo = tasks.Dequeue();
-                if(taskInfo == null)
+                while(!interrupted)
                 {
-                    return;
+                    var taskInfo = tasks.Dequeue();
+                    if(taskInfo == null)
+                    {
+                        return;
+                    }
+                    var result = processData(taskInfo.Item2);
+                    results.Enqueue(taskInfo.Item1, result);
                 }
-                var result = processData(taskInfo.Item2);
-                results.Enqueue(taskInfo.Item1, result);
+            } catch(HandledException e)
+            {
+                this.Interrupt();
+            } catch (Exception e)
+            {
+                Console.WriteLine($"Unhandled exception: {e.Message}");
+                this.Interrupt();
             }
         }
 
         private void UseDataTask()
         {
-            while(true)
+            try
             {
-                var result = results.Dequeue();
-                if(result == null)
+                while(!interrupted)
                 {
-                    return;
+                    var result = results.Dequeue();
+                    if(result == null)
+                    {
+                        return;
+                    }
+                    useResult(result);
                 }
-                useResult(result);
+            } catch(HandledException e)
+            {
+                this.Interrupt();
+            } catch (Exception e)
+            {
+                Console.WriteLine($"Unhandled exception: {e.Message}");
+                this.Interrupt();
             }
         }
     }
