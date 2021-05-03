@@ -81,6 +81,7 @@ namespace Archiver
                 using (GZipStream zipStream = new GZipStream(resultStream, CompressionMode.Compress))
                 {
                     zipStream.Write(data);
+                    zipStream.Flush();
                     return resultStream.ToArray();
                 }
             }
