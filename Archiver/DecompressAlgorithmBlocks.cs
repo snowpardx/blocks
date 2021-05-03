@@ -71,7 +71,6 @@ namespace Archiver
                 readingFinished = true;
                 return null;
             }
-            Console.WriteLine(blockLength);
             var block = binaryReader.ReadBytes(blockLength);
             if(block.Length < blockLength)
             {
@@ -85,7 +84,7 @@ namespace Archiver
         {
             using(MemoryStream inputStream = new MemoryStream(data))
             {
-                using (MemoryStream resultStream = new MemoryStream((int)(data.Length * 2)))
+                using (MemoryStream resultStream = new MemoryStream((int)(data.Length * resizeFactor)))
                 {
                     using (GZipStream zipStream = new GZipStream(inputStream, CompressionMode.Decompress))
                     {
