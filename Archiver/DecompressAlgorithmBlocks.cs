@@ -5,7 +5,7 @@ using System.IO.Compression;
 
 namespace Archiver
 {
-    class CompressAlgorithmBlocks: IDisposable, AlgorithmBlocks
+    class DecompressAlgorithmBlocks: IDisposable, AlgorithmBlocks
     {
         private FileStream inputFileStream;
         private BufferedStream inputBufferedStream;
@@ -13,15 +13,14 @@ namespace Archiver
         private FileStream outputFileStream;
         private BufferedStream outputBufferedStream;
         private BinaryWriter binaryWriter;
-        private const int blockLength = 1024 * 1024; // 1MiB
         private bool readingFinished = false;
-        private const double resizeFactor = 1.25; // used to set initial memory stream size in case zipped data would take more memory
+        private const double resizeFactor = 1.5; // used to set initial memory stream size in case zipped data would take more memory
 
-        private CompressAlgorithmBlocks() { }
+        private DecompressAlgorithmBlocks() { }
 
-        public static CompressAlgorithmBlocks Init(string inputFilePath, string outputFilePath)
+        public static DecompressAlgorithmBlocks Init(string inputFilePath, string outputFilePath)
         {
-            var blocks = new CompressAlgorithmBlocks();
+            var blocks = new DecompressAlgorithmBlocks();
             try
             {
                 blocks.inputFileStream = File.OpenRead(inputFilePath);
@@ -62,34 +61,44 @@ namespace Archiver
             {
                 return null;
             }
+            int blockLength;
+            try
+            {
+                blockLength = binaryReader.ReadInt32(); // before each block we wrote the integer denoting the block length
+            }
+            catch (EndOfStreamException e)
+            {
+                readingFinished = true;
+                return null;
+            }
+            Console.WriteLine(blockLength);
             var block = binaryReader.ReadBytes(blockLength);
             if(block.Length < blockLength)
             {
-                readingFinished = true;
-                if(block.Length == 0)
-                {
-                    return null;
-                }
+                Console.WriteLine("Part of file is missed");
+                throw new HandledException(new Exception("Part of file is missed"));
             }
             return block;
         }
 
         public byte[] ProcessBlock(byte[] data)
         {
-            using (MemoryStream resultStream = new MemoryStream((int)(data.Length * resizeFactor)))
+            using(MemoryStream inputStream = new MemoryStream(data))
             {
-                using (GZipStream zipStream = new GZipStream(resultStream, CompressionMode.Compress))
+                using (MemoryStream resultStream = new MemoryStream((int)(data.Length * 2)))
                 {
-                    zipStream.Write(data);
-                    return resultStream.ToArray();
+                    using (GZipStream zipStream = new GZipStream(inputStream, CompressionMode.Decompress))
+                    {
+                        zipStream.CopyTo(resultStream);
+                        return resultStream.ToArray();
+                    }
                 }
             }
         }
+
         public void UseResult(byte[] result)
         {
-            binaryWriter.Write(result.Length); // we would use this when decompress, so that read the data corresponding to compressed block
             binaryWriter.Write(result);
         }
-
     }
 }

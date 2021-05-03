@@ -26,7 +26,11 @@ namespace Archiver
             }
             try
             {
-                using(var blocks = CompressAlgorithmBlocks.Init(args[1], args[2]))
+                using(var blocks = 
+                    compress
+                    ? (AlgorithmBlocks)CompressAlgorithmBlocks.Init(args[1], args[2])
+                    : (AlgorithmBlocks)DecompressAlgorithmBlocks.Init(args[1], args[2])
+                )
                 {
                     var algorithm = new ParallelAlgorithm<byte[], byte[]>(blocks.GetBlock, blocks.ProcessBlock, blocks.UseResult);
                     return algorithm.Run();
